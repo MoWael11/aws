@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::LanguageExtensions
+Description: AWS CloudFormation template
+
+Parameters:
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+
+  ProjectName:
+    Description: Enter project Name
+    Type: String
+
+  VpcCidr:
+    Description: Enter VPC CIDR
+    Type: String
+    Default: 10.0.0.0/16
+
+  SubnetBitForHost:
+    Description: Enter subnet bits for HOST
+    Type: String
+    Default: 8
+
+
+Mappings:
+  AzMap:
+    a:
+      pub: 0
+      priv: 1
+      iso: 2
+    b:
+      pub: 3
+      priv: 4
+      iso: 5
+    c:
+      pub: 6
+      priv: 7
+      iso: 8
+
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Stack
+          Value: !Ref Env
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-vpc
+
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-igw
+
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-public-rt
+
+  PrivateRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-private-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+      RouteTableId: !Ref PublicRT
+
+  Fn::ForEach::AZ:
+    - az
+    - [ a, b, c ]
+
+    - PublicSubnet${az}:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Sub ${AWS::Region}${az}
+          CidrBlock: !Select 
+            - !FindInMap [AzMap, !Ref az, pub]
+            - !Cidr [ !Ref VpcCidr, 9, !Ref SubnetBitForHost ]
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-public-${az}-subnet
+
+      PrivateSubnet${az}:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Sub ${AWS::Region}${az}
+          CidrBlock: !Select 
+            - !FindInMap [AzMap, !Ref az, priv]
+            - !Cidr [ !Ref VpcCidr, 9, !Ref SubnetBitForHost ] 
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-private-${az}-subnet
+
+      IsolatedSubnet${az}:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Sub ${AWS::Region}${az}
+          CidrBlock: !Select 
+            - !FindInMap [AzMap, !Ref az, iso]
+            - !Cidr [ !Ref VpcCidr, 9, !Ref SubnetBitForHost ] 
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-isolated-${az}-subnet
+
+      PublicSubnetAssociation${az}:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          RouteTableId: !Ref PublicRT
+          SubnetId: !Ref
+            "Fn::Sub": PublicSubnet${az}
+
+      PrivateSubnetAssociation${az}:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          RouteTableId: !Ref PrivateRT
+          SubnetId: !Ref 
+            "Fn::Sub": PrivateSubnet${az}
+
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  
+  NatGateWay:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnetc
+      Tags:
+        - Value: Name
+          Key: !Sub ${ProjectName}-${Env}-nat
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRT
+      NatGatewayId: !Ref NatGateWay
+      DestinationCidrBlock: 0.0.0.0/0
