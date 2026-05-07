@@ -25,9 +25,45 @@ Parameters:
     Description: Enter subnet bits for HOST
     Type: String
     Default: 8
+  
+  DBInstanceName:
+    Description: Enter db username
+    Type: String
+    Default: 'webapp-db'
+
+  DBUsername:
+    Description: Enter username for Postgresql database 
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    Default: 'postgres'
+
+  DBPassword:
+    Description: Enter password for Postgresql database 
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
 
 
 Mappings:
+  EnvironmentInstanceMap:
+    dev:
+      instanceType: t2.nano
+    test:
+      instanceType: t2.micro
+    prod:
+      instanceType: t2.small
+
+  DBInstanceClassMap:
+    dev:
+      instanceType: db.t3.micro
+    test:
+      instanceType: db.t3.small
+    prod:
+      instanceType: db.t3.medium
+
   AzMap:
     a:
       pub: 0
@@ -87,10 +123,49 @@ Resources:
 
   PublicRoute:
     Type: AWS::EC2::Route
+    DependsOn: IGWAttachment 
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref IGW
       RouteTableId: !Ref PublicRT
+
+  WebAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub webapp-security-group-${Env}
+      GroupDescription: 'Allow HTTP/HTTPS and SSH inbound and outbound traffic'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-webapp-sg
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub db-security-group-${Env}
+      GroupDescription: Allow postgres inbound traffic
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref WebAppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-db-sg
 
   Fn::ForEach::AZ:
     - az
@@ -108,6 +183,37 @@ Resources:
             - Key: Name
               Value: !Sub ${ProjectName}-${Env}-public-${az}-subnet
 
+      WebAppInstanceEIP${az}:
+        Type: AWS::EC2::EIP
+        Properties:
+          Domain: vpc
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-webapp-${az}-eip
+
+      WebAppInstance${az}:
+        Type: AWS::EC2::Instance
+        Properties: 
+          ImageId: ami-0c7217cdde317cfec # Ubuntu 22.04 LTS 
+          InstanceType: !FindInMap [ EnvironmentInstanceMap, !Ref Env, instanceType ]
+          SubnetId: !Ref 
+            "Fn::Sub": PublicSubnet${az}
+          SecurityGroupIds:
+            - !Ref WebAppSecurityGroup
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-webapp-${az}-instance
+      
+      WebAppEIPAssociation${az}:
+        Type: AWS::EC2::EIPAssociation
+        Properties:
+          AllocationId: 
+            "Fn::GetAtt":
+              - !Sub "WebAppInstanceEIP${az}"
+              - AllocationId
+          InstanceId: !Ref
+            "Fn::Sub": WebAppInstance${az}
+      
       PrivateSubnet${az}:
         Type: AWS::EC2::Subnet
         Properties:
@@ -146,6 +252,31 @@ Resources:
           SubnetId: !Ref 
             "Fn::Sub": PrivateSubnet${az}
 
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS instance
+      SubnetIds:
+        - !Ref PrivateSubneta
+        - !Ref PrivateSubnetb
+        - !Ref PrivateSubnetc
+
+  DBInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceIdentifier: !Ref DBInstanceName
+      AllocatedStorage: '5'
+      Engine: postgres
+      DBInstanceClass: !FindInMap [ DBInstanceClassMap, !Ref Env, instanceType ]
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-db-instance
+
   NATGatewayEIP:
     Type: AWS::EC2::EIP
     Properties:
@@ -153,12 +284,13 @@ Resources:
   
   NatGateWay:
     Type: AWS::EC2::NatGateway
+    DependsOn: PublicSubnetc
     Properties:
       AllocationId: !GetAtt NATGatewayEIP.AllocationId
       SubnetId: !Ref PublicSubnetc
       Tags:
-        - Value: Name
-          Key: !Sub ${ProjectName}-${Env}-nat
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-nat
 
   PrivateRoute:
     Type: AWS::EC2::Route
