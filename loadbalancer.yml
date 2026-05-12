@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::LanguageExtensions
+Description: AWS CloudFormation loadbalancer template
+
+Parameters:
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+
+  ProjectName:
+    Description: Enter project Name
+    Type: String
+
+  VpcCidr:
+    Description: Enter VPC CIDR
+    Type: String
+    Default: 10.0.0.0/16
+
+
+Mappings:
+  AzMap:
+    a:
+      pub: 0
+      priv: 1
+    b:
+      pub: 2
+      priv: 3
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      Tags:
+        - Key: Stack
+          Value: !Ref Env
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-vpc
+  
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-igw
+
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  
+  NatGateWay:
+    Type: AWS::EC2::NatGateway
+    DependsOn: PublicSubneta
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubneta
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-nat
+
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-public-rt
+
+  PrivateRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-private-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment 
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+      RouteTableId: !Ref PublicRT
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRT
+      NatGatewayId: !Ref NatGateWay
+      DestinationCidrBlock: 0.0.0.0/0
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub loadbalancer-security-group-${Env}
+      GroupDescription: 'Allow HTTP/HTTPS inbound traffic and all outbound traffic'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  WebAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub webapp-security-group-${Env}
+      GroupDescription: 'Allow HTTP/HTTPS and SSH inbound and outbound traffic'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-webapp-sg
+  
+  Fn::ForEach::AZ:
+    - az
+    - [a, b]
+
+    - PublicSubnet${az}:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Sub ${AWS::Region}${az}
+          CidrBlock: !Select 
+            - !FindInMap [AzMap, !Ref az, pub]
+            - !Cidr [ !Ref VpcCidr, 4, 8 ]
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-public-${az}-subnet
+
+      PrivateSubnet${az}:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Sub ${AWS::Region}${az}
+          CidrBlock: !Select 
+            - !FindInMap [AzMap, !Ref az, priv]
+            - !Cidr [ !Ref VpcCidr, 4, 8 ] 
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-private-${az}-subnet
+
+      PublicSubnetAssociation${az}:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          RouteTableId: !Ref PublicRT
+          SubnetId: !Ref
+            "Fn::Sub": PublicSubnet${az}
+
+      PrivateSubnetAssociation${az}:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          RouteTableId: !Ref PrivateRT
+          SubnetId: !Ref 
+            "Fn::Sub": PrivateSubnet${az}
+
+      WebAppInstance${az}:
+        Type: AWS::EC2::Instance
+        Properties: 
+          ImageId: ami-0c7217cdde317cfec # Ubuntu 22.04 LTS
+          InstanceType: t2.micro
+          IamInstanceProfile: corso-EC2-IAM-role
+          SubnetId: !Ref 
+            "Fn::Sub": PrivateSubnet${az}
+          SecurityGroupIds:
+            - !Ref WebAppSecurityGroup
+          UserData:
+            Fn::Base64: !Sub |
+              #!/bin/bash -xe
+              sudo apt update -y
+              sudo apt install -y nginx
+              sudo systemctl enable nginx
+              sudo systemctl start nginx
+              echo "hello from ${az} instance" >> /var/www/html/index.nginx-debian.html
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-webapp-${az}-instance
+    
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${ProjectName}-${Env}-alb
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubneta
+        - !Ref PublicSubnetb
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-alb
+
+  HTTPlistener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+  
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectName}-${Env}-tg
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      TargetType: instance
+      Targets:
+        - Id: !Ref WebAppInstancea
+          Port: 80
+        - Id: !Ref WebAppInstanceb
+          Port: 80
