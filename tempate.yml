@@ -185,6 +185,8 @@ Resources:
 
       WebAppInstanceEIP${az}:
         Type: AWS::EC2::EIP
+        InstanceId: !Ref 
+          "Fn::Sub": WebAppInstance${az}
         Properties:
           Domain: vpc
           Tags:
@@ -203,16 +205,6 @@ Resources:
           Tags:
             - Key: Name
               Value: !Sub ${ProjectName}-${Env}-webapp-${az}-instance
-      
-      WebAppEIPAssociation${az}:
-        Type: AWS::EC2::EIPAssociation
-        Properties:
-          AllocationId: 
-            "Fn::GetAtt":
-              - !Sub "WebAppInstanceEIP${az}"
-              - AllocationId
-          InstanceId: !Ref
-            "Fn::Sub": WebAppInstance${az}
       
       PrivateSubnet${az}:
         Type: AWS::EC2::Subnet
