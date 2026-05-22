@@ -24,7 +24,6 @@ Parameters:
   DBInstanceName:
     Description: Enter db username
     Type: String
-    Default: 'chatapp-db'
 
   DBUsername:
     Description: Enter username for Postgresql database 
@@ -187,7 +186,11 @@ Resources:
           AvailabilityZone: !Sub ${AWS::Region}${az}
           CidrBlock: !Select 
             - !FindInMap [AzMap, !Ref az, priv]
-            - !Cidr [ !Ref VpcCidr, 4, 8 ] 
+            #- !Cidr [ !Ref VpcCidr, 4, 8 ]
+            - !Cidr
+              - !Ref VpcCidr
+              - 4
+              - 8  
           Tags:
             - Key: Name
               Value: !Sub ${ProjectName}-${Env}-private-${az}-subnet
@@ -214,7 +217,7 @@ Resources:
         Properties: 
           ImageId: ami-0c7217cdde317cfec # Ubuntu 22.04 LTS
           InstanceType: t2.micro
-          IamInstanceProfile: corso-EC2-IAM-role
+          IamInstanceProfile: s3ReadOnlyEc2
           SubnetId: !Ref 
             "Fn::Sub": PrivateSubnet${az}
           SecurityGroupIds:
@@ -226,82 +229,30 @@ Resources:
               apt-get update -y
               apt-get upgrade -y
 
-              apt-get install -y nginx php8.1-fpm php8.1-pgsql
-              
-              apt-get install php-pgsql
+              apt-get install -y nginx php8.1-fpm composer
 
               rm -f /etc/nginx/sites-enabled/default
-
-              cat > /etc/nginx/sites-available/default << EOF
-              server {
-                listen 80 default_server;
-                listen [::]:80 default_server;
-
-                root /var/www/html;
-
-                index index.php index.html index.htm index.nginx-debian.html;
-
-                server_name _;
-
-                location / {
-                  try_files $uri $uri/ =404;
-                }
-
-                location ~ \.php$ {
-                  include snippets/fastcgi-php.conf;
-                  fastcgi_pass unix:/run/php/php8.1-fpm.sock;
-                }
-
-                location ~ /\.ht {
-                  deny all;
-                }
-              }
-              EOF
-
+              rm -f /etc/nginx/sites-available/default
+              
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              sudo apt-get install unzip -y
+              unzip awscliv2.zip
+              sudo ./aws/install
+              
+              aws s3 cp s3://amzn-s3-bucket-chatapp/nginx.conf /etc/nginx/sites-available/default
+              
               ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-              cat > /var/www/html/index.php <<EOF
-              
-              <?php
+              apt-get install -y postgresql-client
 
-              \$host='${DBInstance.Endpoint.Address}';
-              \$port=5432;
-              \$db='postgres';
-              \$user='${DBUsername}';
-              \$password='${DBPassword}';
+              apt-get install php-pgsql -y
+              composer require vlucas/phpdotenv
 
-              \$conn = null;
+              aws s3 cp s3://amzn-s3-bucket-chatapp/index.php /var/www/html/index.php 
 
-              try {
-                  \$conn = pg_connect(
-                      "host=\$host port=\$port dbname=\$db user=\$user password=\$password"
-                  );
-
-                  if (!\$conn) {
-                      die("Connection failed: " . pg_last_error());
-                  }
-
-                  echo "<h1>Connected to PostgreSQL successfully</h1>";
-
-                  \$r = pg_query(\$conn, "SELECT NOW()");
-
-                  if (!\$r) {
-                      die("Query failed: " . pg_last_error());
-                  }
-
-                  \$row = pg_fetch_row(\$r);
-
-                  echo "<p>Database time: " . \$row[0] . "</p>";
-
-              } catch (Exception \$e) {
-                  echo "Database error: " . \$e->getMessage();
-              } finally {
-                  if (\$conn) {
-                      pg_close(\$conn);
-                  }
-              }
-
-              ?>
+              cat > /var/www/html/.env << EOF
+              DB_HOST=${DBInstance.Endpoint.Address}
+              DB_PASSWORD=${DBPassword}
               EOF
 
               chmod -R 777 /var/www/html
@@ -366,7 +317,7 @@ Resources:
       Engine: postgres
       DBInstanceClass: db.t3.micro
       MasterUsername: !Ref DBUsername
-      MasterUserPassword: !Ref DBPassword
+      MasterUserPassword: !Sub ${DBPassword}
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
         - !Ref DBSecurityGroup
