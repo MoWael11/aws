@@ -246,7 +246,7 @@ Resources:
               apt-get install -y postgresql-client
 
               apt-get install php-pgsql -y
-              composer require vlucas/phpdotenv
+              composer require vlucas/phpdotenv  --no-interaction
 
               aws s3 cp s3://amzn-s3-bucket-chatapp/index.php /var/www/html/index.php 
 
