@@ -14,14 +14,6 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     Default: 'postgres'
 
-  DBPassword:
-    NoEcho: true
-    Description: Enter password for Postgresql database 
-    Type: String
-    MinLength: '8'
-    MaxLength: '41'
-    AllowedPattern: '[a-zA-Z0-9]*'
-    
   PrivateSubnetaId:
     Description: Enter private subnet a ID
     Type: AWS::EC2::Subnet::Id
@@ -43,6 +35,17 @@ Resources:
         - !Ref PrivateSubnetaId
         - !Ref PrivateSubnetbId
 
+  Secret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: This is the secret for RDS instance
+      Name: !Sub ${DBInstanceName}-secret
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${DBUsername}"}'
+        GenerateStringKey: "password"
+        PasswordLength: 30
+        ExcludeCharacters: '"@/\'
+
   DBInstance:
     Type: 'AWS::RDS::DBInstance'
     Properties:
@@ -50,8 +53,8 @@ Resources:
       AllocatedStorage: '5'
       Engine: postgres
       DBInstanceClass: db.t3.micro
-      MasterUsername: !Ref DBUsername
-      MasterUserPassword: !Sub ${DBPassword}
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref Secret, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref Secret, ':SecretString:password}}' ]]
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups: 
         - !Ref DBSecurityGroupId

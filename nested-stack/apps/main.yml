@@ -5,11 +5,13 @@ Parameters:
   InfraStackName:
     Description: Enter the name of the infra stack
     Type: String
+    Default: infra
 
   S3BucketName:
     Description: Enter S3 bucket name
     Type: String
-  
+    Default: cloudformation5902
+    
   DBInstanceName:
     Description: Enter db username
     Type: String
@@ -23,15 +25,6 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     Default: 'postgres'
 
-  DBPassword:
-    NoEcho: true
-    Description: Enter password for Postgresql database 
-    Type: String
-    MinLength: '8'
-    MaxLength: '41'
-    AllowedPattern: '[a-zA-Z0-9]*'
-    Default: password
-    
 Resources:
   SGStack:
     Type: AWS::CloudFormation::Stack
@@ -53,35 +46,14 @@ Resources:
       Parameters:
         DBInstanceName: !Ref DBInstanceName
         DBUsername: !Ref DBUsername
-        DBPassword: !Ref DBPassword
         PrivateSubnetaId: !ImportValue 
           "Fn::Sub": ${InfraStackName}-PrivateSubnetaId
         PrivateSubnetbId: !ImportValue 
           "Fn::Sub": ${InfraStackName}-PrivateSubnetbId
         DBSecurityGroupId: !GetAtt SGStack.Outputs.DBSecurityGroupId
 
-  WebAppStack:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: RDSStack
-    Properties:
-      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/ec2.yml
-      Parameters:
-        S3BucketName: !Ref S3BucketName
-        ProjectName: !ImportValue
-          "Fn::Sub": ${InfraStackName}-ProjectName
-        Env: !ImportValue 
-          "Fn::Sub": ${InfraStackName}-Env
-        PrivateSubnetaId: !ImportValue 
-          "Fn::Sub": ${InfraStackName}-PrivateSubnetaId
-        PrivateSubnetbId: !ImportValue 
-          "Fn::Sub": ${InfraStackName}-PrivateSubnetbId
-        WebAppSecurityGroupId: !GetAtt SGStack.Outputs.WebAppSecurityGroupId
-        DBPassword: !Ref DBPassword
-        DBEndpoint: !GetAtt RDSStack.Outputs.DBEndpoint
-
   ALBStack:
     Type: AWS::CloudFormation::Stack
-    DependsOn: WebAppStack
     Properties:
       TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/alb.yml
       Parameters:
@@ -94,7 +66,26 @@ Resources:
         PublicSubnetbId: !ImportValue 
           "Fn::Sub": ${InfraStackName}-PublicSubnetbId
         LoadBalancerSecurityGroupId: !GetAtt SGStack.Outputs.LoadBalancerSecurityGroupId
-        WebAppInstanceaId: !GetAtt WebAppStack.Outputs.WebAppInstanceaId
-        WebAppInstancebId: !GetAtt WebAppStack.Outputs.WebAppInstancebId
         VpcId: !ImportValue
           "Fn::Sub": ${InfraStackName}-VpcId
+  
+  ASGStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: 
+      - RDSStack
+      - ALBStack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/asg.yml
+      Parameters:
+        S3BucketName: !Ref S3BucketName
+        ProjectName: !ImportValue
+          "Fn::Sub": ${InfraStackName}-ProjectName
+        Env: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-Env
+        PrivateSubnetaId: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-PrivateSubnetaId
+        PrivateSubnetbId: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-PrivateSubnetbId
+        WebAppSecurityGroupId: !GetAtt SGStack.Outputs.WebAppSecurityGroupId
+        DBEndpoint: !GetAtt RDSStack.Outputs.DBEndpoint
+        TargetGroupARN: !GetAtt ALBStack.Outputs.TargetGroupARN

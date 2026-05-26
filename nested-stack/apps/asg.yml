@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::LanguageExtensions
+Description: EC2 template for apps
+
+Parameters:
+  S3BucketName:
+    Description: Enter S3 bucket name
+    Type: String
+
+  ProjectName:
+    Description: Enter project Name
+    Type: String
+
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+
+  PrivateSubnetaId:
+    Description: Enter private subnet a ID
+    Type: AWS::EC2::Subnet::Id
+  
+  PrivateSubnetbId:
+    Description: Enter private subnet b ID
+    Type: AWS::EC2::Subnet::Id
+
+  WebAppSecurityGroupId:
+    Description: Enter web app security group ID
+    Type: AWS::EC2::SecurityGroup::Id
+
+  DBEndpoint:
+    Description: Enter RDS endpoint
+    Type: String
+
+  TargetGroupARN:
+    Description: Enter target group ID for ALB
+    Type: String
+
+Resources:
+  WebAppLT:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData: 
+        ImageId: ami-0662b1522175d8992
+        InstanceType: t2.micro
+        IamInstanceProfile: 
+          Arn: arn:aws:iam::919788038405:instance-profile/corso+secret
+        SecurityGroupIds:
+          - !Ref WebAppSecurityGroupId
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            cat > /var/www/html/.env << EOF
+            DB_HOST=${DBEndpoint}
+            EOF
+  WebAppASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MinSize: 2
+      DesiredCapacity: 2
+      MaxSize: 4
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebAppLT
+        Version: !GetAtt WebAppLT.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnetaId
+        - !Ref PrivateSubnetbId
+      TargetGroupARNs:
+        - !Ref TargetGroupARN
+    tags:
+      - Key: Name
+        Value: !Sub ${ProjectName}-${Env}-asg-webapp

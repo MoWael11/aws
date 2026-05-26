@@ -27,14 +27,6 @@ Parameters:
     Description: Enter load balancer security group ID
     Type: AWS::EC2::SecurityGroup::Id
 
-  WebAppInstanceaId:
-    Description: Enter web app instance a ID
-    Type: AWS::EC2::Instance::Id
-    
-  WebAppInstancebId:
-    Description: Enter web app instance b ID
-    Type: AWS::EC2::Instance::Id
-  
   VpcId:
     Description: Enter VPC ID
     Type: AWS::EC2::VPC::Id
@@ -73,8 +65,8 @@ Resources:
       Protocol: HTTP
       VpcId: !Ref VpcId
       TargetType: instance
-      Targets:
-        - Id: !Ref WebAppInstanceaId
-          Port: 80
-        - Id: !Ref WebAppInstancebId
-          Port: 80
+
+Outputs:
+  TargetGroupARN:
+    Description: Target group ID for ALB
+    Value: !Ref TargetGroup

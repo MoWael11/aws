@@ -6,10 +6,12 @@ Parameters:
   S3BucketName:
     Description: Enter S3 bucket name
     Type: String
+    Default: cloudformation5902
 
   ProjectName:
     Description: Enter project Name
     Type: String
+    Default: chatapp
 
   Env:
     Description: Enter dev, prod, test
