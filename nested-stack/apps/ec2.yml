@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::LanguageExtensions
+Description: EC2 template for apps
+
+Parameters:
+  S3BucketName:
+    Description: Enter S3 bucket name
+    Type: String
+
+  ProjectName:
+    Description: Enter project Name
+    Type: String
+
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+
+  PrivateSubnetaId:
+    Description: Enter private subnet a ID
+    Type: AWS::EC2::Subnet::Id
+  
+  PrivateSubnetbId:
+    Description: Enter private subnet b ID
+    Type: AWS::EC2::Subnet::Id
+
+  WebAppSecurityGroupId:
+    Description: Enter web app security group ID
+    Type: AWS::EC2::SecurityGroup::Id
+
+  DBPassword:
+    NoEcho: true
+    Description: Enter password for Postgresql database 
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+
+  DBEndpoint:
+    Description: Enter RDS endpoint
+    Type: String
+
+Resources:
+  Fn::ForEach::AZ:
+    - az
+    - [a, b]
+
+    - WebAppInstance${az}:
+        Type: AWS::EC2::Instance
+        Properties: 
+          ImageId: ami-0c7217cdde317cfec # Ubuntu 22.04 LTS
+          InstanceType: t2.micro
+          IamInstanceProfile: s3ReadOnlyEc2
+          SubnetId: !Ref 
+            "Fn::Sub": PrivateSubnet${az}Id
+          SecurityGroupIds:
+            - !Ref WebAppSecurityGroupId
+          UserData:
+            Fn::Base64: !Sub |
+              #!/bin/bash
+              sudo su
+              apt-get update -y
+              apt-get upgrade -y
+
+              apt-get install -y nginx php8.1-fpm composer
+
+              rm -f /etc/nginx/sites-enabled/default
+              rm -f /etc/nginx/sites-available/default
+              
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              sudo apt-get install unzip -y
+              unzip awscliv2.zip
+              sudo ./aws/install
+              
+              aws s3 cp s3://${S3BucketName}/webapp/nginx.conf /etc/nginx/sites-available/default
+              
+              ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+              apt-get install -y postgresql-client
+
+              apt-get install php-pgsql -y
+              composer require vlucas/phpdotenv  --no-interaction
+
+              aws s3 cp s3://${S3BucketName}/webapp/index.php /var/www/html/index.php 
+              echo From machine ${az} >> /var/www/html/index.php
+
+              cat > /var/www/html/.env << EOF
+              DB_HOST=${DBEndpoint}
+              DB_PASSWORD=${DBPassword}
+              EOF
+
+              chmod -R 777 /var/www/html
+
+              sudo systemctl restart nginx
+          Tags:
+            - Key: Name
+              Value: !Sub ${ProjectName}-${Env}-webapp-${az}-instance
+
+Outputs:
+  WebAppInstanceaId:
+    Description: Web app instance a 
+    Value: !Ref WebAppInstancea
+
+  WebAppInstancebId:
+    Description: Web app instance b
+    Value: !Ref WebAppInstanceb

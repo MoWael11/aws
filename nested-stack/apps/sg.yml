@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Security group template for apps
+
+Parameters:
+  ProjectName:
+    Description: Enter project Name
+    Type: String
+
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+  
+  VpcId: 
+    Description: Enter VPC ID
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub loadbalancer-security-group-${Env}
+      GroupDescription: 'Allow HTTP/HTTPS inbound traffic and all outbound traffic'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  WebAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub webapp-security-group-${Env}
+      GroupDescription: 'Allow HTTP/HTTPS and SSH inbound and outbound traffic'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-webapp-sg
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub db-security-group-${Env}
+      GroupDescription: Allow postgres inbound traffic
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref WebAppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-db-sg
+
+Outputs:
+  LoadBalancerSecurityGroupId:
+    Description: Security group for load balancer
+    Value: !Ref LoadBalancerSecurityGroup
+  
+  WebAppSecurityGroupId:
+    Description: Security group for web application
+    Value: !Ref WebAppSecurityGroup
+  
+  DBSecurityGroupId:
+    Description: Security group for database
+    Value: !Ref DBSecurityGroup

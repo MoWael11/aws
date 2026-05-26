@@ -249,6 +249,7 @@ Resources:
               composer require vlucas/phpdotenv  --no-interaction
 
               aws s3 cp s3://amzn-s3-bucket-chatapp/index.php /var/www/html/index.php 
+              echo From machine ${az} >> /var/www/html/index.php
 
               cat > /var/www/html/.env << EOF
               DB_HOST=${DBInstance.Endpoint.Address}
