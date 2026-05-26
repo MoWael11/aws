@@ -57,6 +57,7 @@ Resources:
             cat > /var/www/html/.env << EOF
             DB_HOST=${DBEndpoint}
             EOF
+            
   WebAppASG:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -74,3 +75,13 @@ Resources:
     tags:
       - Key: Name
         Value: !Sub ${ProjectName}-${Env}-asg-webapp
+
+  CPUScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref WebAppASG
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: '70'
