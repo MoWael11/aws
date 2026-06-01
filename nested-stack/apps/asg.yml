@@ -32,10 +32,6 @@ Parameters:
     Description: Enter web app security group ID
     Type: AWS::EC2::SecurityGroup::Id
 
-  DBEndpoint:
-    Description: Enter RDS endpoint
-    Type: String
-
   TargetGroupARN:
     Description: Enter target group ID for ALB
     Type: String
@@ -45,18 +41,12 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData: 
-        ImageId: ami-0662b1522175d8992
+        ImageId: ami-0e8d0bbbe90f7f29e
         InstanceType: t2.micro
         IamInstanceProfile: 
           Arn: arn:aws:iam::919788038405:instance-profile/corso+secret
         SecurityGroupIds:
           - !Ref WebAppSecurityGroupId
-        UserData:
-          Fn::Base64: !Sub |
-            #!/bin/bash
-            cat > /var/www/html/.env << EOF
-            DB_HOST=${DBEndpoint}
-            EOF
             
   WebAppASG:
     Type: AWS::AutoScaling::AutoScalingGroup

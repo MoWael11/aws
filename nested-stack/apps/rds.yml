@@ -44,7 +44,7 @@ Resources:
         SecretStringTemplate: !Sub '{"username": "${DBUsername}"}'
         GenerateStringKey: "password"
         PasswordLength: 30
-        ExcludeCharacters: '"@/\'
+        ExcludeCharacters: '"$@/\'
 
   DBInstance:
     Type: 'AWS::RDS::DBInstance'
@@ -62,7 +62,10 @@ Resources:
         - Key: Name
           Value: !Sub db-instance
 
-Outputs:
-  DBEndpoint:
-    Description: Database connection url
-    Value: !GetAtt DBInstance.Endpoint.Address 
+  Parameter:
+    Type: AWS::SSM::Parameter
+    DependsOn: DBInstance
+    Properties:
+      Name: !Sub ${DBInstanceName}-parameter
+      Type: String
+      Value: !GetAtt DBInstance.Endpoint.Address
