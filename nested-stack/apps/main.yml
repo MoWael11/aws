@@ -11,7 +11,12 @@ Parameters:
     Description: Enter S3 bucket name
     Type: String
     Default: cloudformation5902
-    
+  
+  AWSHostRegister:
+    Description: Enter AWS host register
+    Type: String
+    Default: 919788038405.dkr.ecr.us-east-1.amazonaws.com
+
   DBInstanceName:
     Description: Enter db username
     Type: String
@@ -68,23 +73,23 @@ Resources:
         LoadBalancerSecurityGroupId: !GetAtt SGStack.Outputs.LoadBalancerSecurityGroupId
         VpcId: !ImportValue
           "Fn::Sub": ${InfraStackName}-VpcId
-  
-  ASGStack:
+
+  ECSStack:
     Type: AWS::CloudFormation::Stack
     DependsOn: 
       - RDSStack
       - ALBStack
     Properties:
-      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/asg.yml
+      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/ecs.yml
       Parameters:
-        S3BucketName: !Ref S3BucketName
         ProjectName: !ImportValue
           "Fn::Sub": ${InfraStackName}-ProjectName
-        Env: !ImportValue 
-          "Fn::Sub": ${InfraStackName}-Env
+        AWSHostRegister: !Ref AWSHostRegister
+        SecretManagerArn: !GetAtt RDSStack.Outputs.SecretManagerArn
+        SSM: !GetAtt RDSStack.Outputs.SSM
+        TargetGroupArn: !GetAtt ALBStack.Outputs.TargetGroupARN
         PrivateSubnetaId: !ImportValue 
           "Fn::Sub": ${InfraStackName}-PrivateSubnetaId
         PrivateSubnetbId: !ImportValue 
           "Fn::Sub": ${InfraStackName}-PrivateSubnetbId
         WebAppSecurityGroupId: !GetAtt SGStack.Outputs.WebAppSecurityGroupId
-        TargetGroupARN: !GetAtt ALBStack.Outputs.TargetGroupARN

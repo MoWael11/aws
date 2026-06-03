@@ -69,3 +69,12 @@ Resources:
       Name: !Sub ${DBInstanceName}-parameter
       Type: String
       Value: !GetAtt DBInstance.Endpoint.Address
+
+Outputs:
+  SecretManagerArn:
+    Description: Secret Manager ARN for RDS instance
+    Value: !Ref Secret
+
+  SSM:
+    Description: SSM Name for RDS instance
+    Value: !Ref Parameter

@@ -64,7 +64,7 @@ Resources:
       Port: 80
       Protocol: HTTP
       VpcId: !Ref VpcId
-      TargetType: instance
+      TargetType: ip
 
 Outputs:
   TargetGroupARN:
