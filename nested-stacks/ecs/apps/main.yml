@@ -34,7 +34,7 @@ Resources:
   SGStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/sg.yml
+      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/ecs/apps/sg.yml
       Parameters:
         ProjectName: !ImportValue 
           "Fn::Sub": ${InfraStackName}-ProjectName
@@ -47,7 +47,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     DependsOn: SGStack
     Properties:
-      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/rds.yml
+      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/ecs/apps/rds.yml
       Parameters:
         DBInstanceName: !Ref DBInstanceName
         DBUsername: !Ref DBUsername
@@ -60,7 +60,7 @@ Resources:
   ALBStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/alb.yml
+      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/ecs/apps/alb.yml
       Parameters:
         ProjectName: !ImportValue
           "Fn::Sub": ${InfraStackName}-ProjectName
@@ -80,7 +80,7 @@ Resources:
       - RDSStack
       - ALBStack
     Properties:
-      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/apps/ecs.yml
+      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/ecs/apps/ecs.yml
       Parameters:
         ProjectName: !ImportValue
           "Fn::Sub": ${InfraStackName}-ProjectName

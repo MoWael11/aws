@@ -3,15 +3,15 @@ Transform: AWS::LanguageExtensions
 Description: Infra template
 
 Parameters:
-  S3BucketName:
-    Description: Enter S3 bucket name
+  S3AssetsBucketName:
+    Description: Enter S3 bucket assets name
     Type: String
     Default: cloudformation5902
 
   ProjectName:
     Description: Enter project Name
     Type: String
-    Default: chatapp
+    Default: filemanager
 
   Env:
     Description: Enter dev, prod, test
@@ -31,7 +31,7 @@ Resources:
   VPCStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://${S3BucketName}.s3.us-east-1.amazonaws.com/infra/vpc.yml
+      TemplateURL: !Sub https://${S3AssetsBucketName}.s3.us-east-1.amazonaws.com/serverless/infra/vpc.yml
       Parameters:
         ProjectName: !Ref ProjectName
         Env: !Ref Env
@@ -66,20 +66,18 @@ Outputs:
       Name:
         "Fn::Sub": ${AWS::StackName}-VpcId
 
+  DefultSgId:
+      Description: The default security group ID of the VPC
+      Value: !GetAtt VPCStack.Outputs.DefultSgId
+      Export:
+        Name:
+          "Fn::Sub": ${AWS::StackName}-DefultSgId
+
   Fn::ForEach::AZ:
     - az
     - [a, b]
 
-    - VPCPublicSubnet${az}Id:
-        Description: !Sub The Public Subnet ID for AZ ${az}
-        Value: !GetAtt
-          - VPCStack
-          - !Sub 'Outputs.PublicSubnet${az}Id'
-        Export:
-          Name:
-            "Fn::Sub": ${AWS::StackName}-PublicSubnet${az}Id
-
-      VPCPrivateSubnet${az}Id:
+    - VPCPrivateSubnet${az}Id:
         Description: !Sub The Private Subnet ID for AZ ${az}
         Value: !GetAtt 
           - VPCStack

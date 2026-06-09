@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Lambda function template for apps
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  ProjectName:
+    Description: Enter project Name
+    Type: String
+
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+  
+  SQSQueueArn:
+    Description: Enter SQS queue ARN
+    Type: String
+
+  PrivateSubnetaId:
+    Description: Enter private subnet a id
+    Type: String
+
+  PrivateSubnetbId:
+    Description: Enter private subnet b id
+    Type: String
+
+  DefultSgId:
+    Description: Enter default security group ID
+    Type: String
+
+  VpcId:
+    Description: Enter VPC ID
+    Type: String
+
+  S3AssetsBucketName:
+    Description: Enter S3 bucket assets name
+    Type: String
+
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Env}-function
+      Runtime: python3.12
+      CodeUri: 
+        Bucket: !Ref S3AssetsBucketName
+        Key: serverless/app/lambda.zip
+      Handler: lambda.lambda_handler
+      Role: arn:aws:iam::919788038405:role/dynamodb-sqs-lambda
+      Timeout: 4
+      VpcConfig:
+        SubnetIds:
+          - !Ref PrivateSubnetaId
+          - !Ref PrivateSubnetbId
+        SecurityGroupIds:
+          - !Ref DefultSgId
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !Ref SQSQueueArn
+            BatchSize: 10
