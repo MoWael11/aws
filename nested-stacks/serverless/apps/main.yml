@@ -39,6 +39,17 @@ Resources:
           "Fn::Sub": ${InfraStackName}-Env
         S3BucketName: !Ref S3BucketName
 
+  MessagingStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3AssetsBucketName}.s3.us-east-1.amazonaws.com/serverless/apps/messaging.yml
+      Parameters:
+        ProjectName: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-ProjectName
+        Env: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-Env
+        S3BucketName: !Ref S3BucketName
+
   LambdaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -48,7 +59,7 @@ Resources:
           "Fn::Sub": ${InfraStackName}-ProjectName
         Env: !ImportValue 
           "Fn::Sub": ${InfraStackName}-Env
-        SQSQueueArn: !GetAtt S3Stack.Outputs.SQSQueueArn
+        SQSQueueArn: !GetAtt MessagingStack.Outputs.SQSQueueArn
         PrivateSubnetaId: !ImportValue 
           "Fn::Sub": ${InfraStackName}-PrivateSubnetaId
         PrivateSubnetbId: !ImportValue 

@@ -41,6 +41,58 @@ Parameters:
     Type: String
 
 Resources:
+  LambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${Env}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-${Env}-dynamodb-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadWriteTable
+                Effect: Allow
+                Action:
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:Scan
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource: "*"
+        - PolicyName: !Sub "${ProjectName}-${Env}-sqs-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: SQSAccess
+                Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: "*"
+        - PolicyName: !Sub "${ProjectName}-${Env}-vpc-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: LambdaVPCAccess
+                Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -50,7 +102,7 @@ Resources:
         Bucket: !Ref S3AssetsBucketName
         Key: serverless/app/lambda.zip
       Handler: lambda.lambda_handler
-      Role: arn:aws:iam::919788038405:role/dynamodb-sqs-lambda
+      Role: !GetAtt LambdaFunctionRole.Arn
       Timeout: 4
       VpcConfig:
         SubnetIds:

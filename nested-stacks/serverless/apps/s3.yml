@@ -20,39 +20,8 @@ Parameters:
     Type: String
 
 Resources:
-  SQSQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: !Sub "${ProjectName}-${Env}-queue"
-      Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-${Env}-queue"
-
-  SQSQueuePolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      Queues:
-        - !Ref SQSQueue
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: AllowS3SendMessage
-            Effect: Allow
-            Principal:
-              Service: s3.amazonaws.com
-            Action:
-              - sqs:SendMessage
-            Resource: !GetAtt SQSQueue.Arn
-            Condition:
-              ArnLike:
-                aws:SourceArn: !Sub "arn:aws:s3:::${S3BucketName}-${AWS::AccountId}-${AWS::Region}"
-              StringEquals:
-                aws:SourceAccount: !Ref AWS::AccountId
-
   S3Bucket:
     Type: AWS::S3::Bucket
-    DependsOn:
-      - SQSQueuePolicy
     Properties:
       BucketName: !Sub "${S3BucketName}-${AWS::AccountId}-${AWS::Region}"
       VersioningConfiguration:
@@ -62,19 +31,8 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
       NotificationConfiguration:
-        QueueConfigurations:
-          - Event: s3:ObjectCreated:*
-            Queue: !GetAtt SQSQueue.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .json
+        EventBridgeConfiguration: 
+          EventBridgeEnabled: true
       Tags:
         - Key: Name
           Value: !Sub "${ProjectName}-${Env}-bucket"
-
-Outputs:
-  SQSQueueArn:
-    Description: The ARN of the SQS queue
-    Value: !GetAtt SQSQueue.Arn

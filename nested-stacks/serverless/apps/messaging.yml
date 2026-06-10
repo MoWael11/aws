@@ -1,0 +1,153 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Messaging template for apps contains Eventbridge, SQS queue and SNS topic
+
+Parameters:
+  ProjectName:
+    Description: Enter project name
+    Type: String
+
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+
+  S3BucketName:
+    Description: Enter S3 bucket name
+    Type: String
+
+Resources:
+  EventBridgeRuleRole:
+    Type: AWS::IAM::Role
+    DependsOn:
+      - SNSTopic
+    Properties:
+      RoleName: !Sub "${ProjectName}-${Env}-eventbridge-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-${Env}-sns-publish-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref SNSTopic
+
+  EventBridgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${ProjectName}-${Env}-eventbridge-rule"
+      EventPattern:
+        source:
+          - "aws.s3"
+        detail-type:
+          - "Object Created"
+        detail:
+          bucket:
+            name:
+              - !Sub "${S3BucketName}-${AWS::AccountId}-${AWS::Region}"
+          object:
+            key:
+              - wildcard: "data/es1/*.json"
+      EventBusName: default
+      Targets:
+        - Arn: !Ref SNSTopic
+          Id: "SNSTopicTarget"
+          RoleArn: !GetAtt EventBridgeRuleRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Env}-eventbridge-rule"
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ProjectName}-${Env}-sns-topic"
+      FifoTopic: false
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Env}-sns-topic"
+
+  SNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref SNSTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowEventBridgePublish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref SNSTopic
+            Condition:
+              ArnLike:
+                aws:SourceArn: !GetAtt EventBridgeRule.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  # Dead letter queue 
+  SQSDLQQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-${Env}-dlq-queue"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Env}-dlq-queue"
+
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-${Env}-queue"
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt SQSDLQQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Env}-queue"
+
+  SQSQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSNSSendMessage
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action:
+              - SQS:SendMessage
+            Resource: !GetAtt SQSQueue.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Ref SNSTopic
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+  
+  SQSQueueSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopic
+      Protocol: sqs
+      Endpoint: !GetAtt SQSQueue.Arn
+  
+Outputs:
+  SQSQueueArn:
+    Description: The ARN of the SQS queue
+    Value: !GetAtt SQSQueue.Arn
