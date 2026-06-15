@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: S3 Bucket template for apps
+
+Parameters:
+  ProjectName:
+    Description: Enter project name
+    Type: String
+
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+
+  S3BucketName:
+    Description: Enter S3 bucket name
+    Type: String
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${S3BucketName}-${AWS::AccountId}-${AWS::Region}"
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      NotificationConfiguration:
+        EventBridgeConfiguration: 
+          EventBridgeEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Env}-bucket"

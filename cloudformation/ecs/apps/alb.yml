@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Application load balancer template for apps
+
+Parameters:
+  ProjectName:
+    Description: Enter project Name
+    Type: String
+
+  Env:
+    Description: Enter dev, prod, test
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - test
+
+  PublicSubnetaId:
+    Description: Enter public subnet a ID
+    Type: AWS::EC2::Subnet::Id
+  
+  PublicSubnetbId:
+    Description: Enter public subnet b ID
+    Type: AWS::EC2::Subnet::Id
+
+  LoadBalancerSecurityGroupId:
+    Description: Enter load balancer security group ID
+    Type: AWS::EC2::SecurityGroup::Id
+
+  VpcId:
+    Description: Enter VPC ID
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${ProjectName}-${Env}-alb
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnetaId
+        - !Ref PublicSubnetbId
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${Env}-alb
+
+  HTTPlistener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+  
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectName}-${Env}-tg
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      TargetType: ip
+
+Outputs:
+  TargetGroupARN:
+    Description: Target group ID for ALB
+    Value: !Ref TargetGroup

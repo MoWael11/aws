@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Apps template
+
+Parameters:
+  InfraStackName:
+    Description: Enter the name of the infra stack
+    Type: String
+    Default: infra
+
+  S3AssetsBucketName:
+    Description: Enter S3 bucket assets name
+    Type: String
+    Default: cloudformation5902
+
+  S3BucketName:
+    Description: Enter S3 bucket name
+    Type: String
+    Default: filemanager-apps-bucket
+
+Resources:
+  DynamodbStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3AssetsBucketName}.s3.us-east-1.amazonaws.com/serverless/apps/dynamodb.yml
+      Parameters:
+        ProjectName: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-ProjectName
+        Env: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-Env
+  
+  S3Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3AssetsBucketName}.s3.us-east-1.amazonaws.com/serverless/apps/s3.yml
+      Parameters:
+        ProjectName: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-ProjectName
+        Env: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-Env
+        S3BucketName: !Ref S3BucketName
+
+  MessagingStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3AssetsBucketName}.s3.us-east-1.amazonaws.com/serverless/apps/messaging.yml
+      Parameters:
+        ProjectName: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-ProjectName
+        Env: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-Env
+        S3BucketName: !Ref S3BucketName
+
+  LambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3AssetsBucketName}.s3.us-east-1.amazonaws.com/serverless/apps/lambda.yml
+      Parameters:
+        ProjectName: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-ProjectName
+        Env: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-Env
+        SQSQueueArn: !GetAtt MessagingStack.Outputs.SQSQueueArn
+        PrivateSubnetaId: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-PrivateSubnetaId
+        PrivateSubnetbId: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-PrivateSubnetbId
+        S3AssetsBucketName: !Ref S3AssetsBucketName
+        VpcId: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-VpcId
+        DefultSgId: !ImportValue 
+          "Fn::Sub": ${InfraStackName}-DefultSgId

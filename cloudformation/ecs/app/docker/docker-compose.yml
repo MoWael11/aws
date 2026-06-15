@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+
+  app:
+    environment:
+      - DB_HOST=abo7med.com
+      - username=abo7med
+      - password=password
+    build:
+      context: ./app
+    container_name: app
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
