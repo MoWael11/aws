@@ -3,7 +3,6 @@ import { NestedStackPropsWithConfig } from '../../types/stack';
 import { Construct } from 'constructs';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import * as lambda from 'aws-cdk-lib/aws-lambda'
-import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
@@ -20,11 +19,10 @@ export class ComputeStack extends cdk.NestedStack {
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props)
 
-    const config = props.config;
     const vpc = props.vpc;
     const sqsQueue = props.sqsQueue;
     const table = props.table;
-    
+
     this.lambdaFunction = new lambda.Function(this, "LambdaFunction", {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: "handler.lambda_handler",
@@ -32,10 +30,6 @@ export class ComputeStack extends cdk.NestedStack {
       environment: {
         TABLE_NAME: table.tableName,
       },
-      role: new Role(this, "LambdaFunctionRole", {
-        roleName: `${config.projectName}-${config.env}-lambda-role`,
-        assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-      }),
       vpc: vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     })
@@ -46,5 +40,6 @@ export class ComputeStack extends cdk.NestedStack {
     }) );
 
     table.grantWriteData(this.lambdaFunction)
+    sqsQueue.grantConsumeMessages(this.lambdaFunction)
   }
 }
