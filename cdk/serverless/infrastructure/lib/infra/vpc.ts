@@ -1,17 +1,21 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
-import { NestedStackPropsWithConfig } from "../../types/stack";
+import { Config } from "../../types/config";
 
-export class VpcStack extends cdk.NestedStack {
+interface VpcConstructProps {
+  config: Config;
+}
+
+export class VpcConstruct extends Construct {
   public readonly vpc: ec2.Vpc;
 
-  constructor(scope: Construct, id: string, props: NestedStackPropsWithConfig) {
-    super(scope, id, props);
+  constructor(scope: Construct, id: string, props: VpcConstructProps) {
+    super(scope, id);
 
     const cidr = props.config.infra.cidr;
     const cidrMask = props.config.infra.cidrMask;
-    
+
     this.vpc = new ec2.Vpc(this, "Vpc", {
       ipAddresses: ec2.IpAddresses.cidr(cidr),
       maxAzs: 2,

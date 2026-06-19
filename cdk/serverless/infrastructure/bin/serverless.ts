@@ -12,7 +12,6 @@ const stage = process.env.ENV || 'dev';
 const config: Config = stage === 'dev' ? require('../config/dev').config : require('../config/prod').config;
 
 const app = new cdk.App();
-
 const infra = new InfraStack(app, "InfraStack", {
   config,
   env: { account: config.account, region: config.region },

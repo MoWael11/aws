@@ -1,13 +1,11 @@
-import * as cdk from 'aws-cdk-lib';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
-import dynamodb = require('aws-cdk-lib/aws-dynamodb');
-import { NestedStackPropsWithConfig } from '../../types/stack';
 
-export class DynamoDBStack extends cdk.NestedStack {
+export class DynamoDBConstruct extends Construct {
   public readonly table: dynamodb.Table;
   
-  constructor(scope: Construct, id: string, props: NestedStackPropsWithConfig) {
-    super(scope, id, props);
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
     
     this.table = new dynamodb.Table(this, "Table", {
       partitionKey: {
