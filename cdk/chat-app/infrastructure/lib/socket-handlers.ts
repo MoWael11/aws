@@ -1,62 +1,81 @@
 import * as lambda from 'aws-cdk-lib/aws-lambda'
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as logs from 'aws-cdk-lib/aws-logs'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import * as cognito from 'aws-cdk-lib/aws-cognito'
 import { Construct } from "constructs";
 
-interface SocketHandlersProps {
-  table: dynamodb.Table
+interface SocketHandlersConstrcutProps {
+  connectionTable: dynamodb.Table
+  messageTable: dynamodb.Table
+  userPool: cognito.UserPool
+  userPoolClient: cognito.UserPoolClient
 }
 
-export class SocketHandlers extends Construct {
-  public readonly connectHandler: lambda.Function;
-  public readonly defaultHandler: lambda.Function;
-  public readonly disconnectHandler: lambda.Function;
-  public readonly sendMessageHandler: lambda.Function;
-  
-  constructor(scope: Construct, id: string, socketHandlersProps: SocketHandlersProps)  {
+export class SocketHandlersConstrcut extends Construct {
+  public readonly connectHandler: NodejsFunction;
+  public readonly defaultHandler: NodejsFunction;
+  public readonly disconnectHandler: NodejsFunction;
+  public readonly sendMessageHandler: NodejsFunction;
+  public readonly authHandler: NodejsFunction;
+
+  constructor(scope: Construct, id: string, props: SocketHandlersConstrcutProps) {
     super(scope, id);
 
-    this.connectHandler = new lambda.Function(this, "ConnectHandler", {
+    this.authHandler = new NodejsFunction(this, "AuthHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      code: lambda.Code.fromAsset("./backend/src/lambdas/connectHandler"),
+      entry: "./backend/src/lambdas/handlers/authHandler/index.js",
       logRetention: logs.RetentionDays.ONE_WEEK,
       environment: {
-        TABLE_NAME: socketHandlersProps.table.tableName,
-      }
-    })
-  
-    socketHandlersProps.table.grantWriteData(this.connectHandler);
-
-    this.defaultHandler = new lambda.Function(this, "DefaultHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset("./backend/src/lambdas/defaultHandler"),
-      logRetention: logs.RetentionDays.ONE_WEEK,
-    })
-    
-    this.disconnectHandler = new lambda.Function(this, "DisconnectHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset("./backend/src/lambdas/disconnectHandler"),
-      logRetention: logs.RetentionDays.ONE_WEEK,
-      environment: {
-        TABLE_NAME: socketHandlersProps.table.tableName,
+        USER_POOL_ID: props.userPool.userPoolId,
+        CLIENT_ID: props.userPoolClient.userPoolClientId,
       }
     })
 
-    socketHandlersProps.table.grantWriteData(this.disconnectHandler);
-
-    this.sendMessageHandler = new lambda.Function(this, "SendMessageHandler", {
+    this.connectHandler = new NodejsFunction(this, "ConnectHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      code: lambda.Code.fromAsset("./backend/src/lambdas/sendMessageHandler"),
+      entry: "./backend/src/lambdas/handlers/connectHandler/index.js",
       logRetention: logs.RetentionDays.ONE_WEEK,
       environment: {
-        TABLE_NAME: socketHandlersProps.table.tableName,
+        CONNECTION_TABLE_NAME: props.connectionTable.tableName,
       }
     })
 
-    socketHandlersProps.table.grantReadWriteData(this.sendMessageHandler);
+    props.connectionTable.grantWriteData(this.connectHandler);
+
+    this.defaultHandler = new NodejsFunction(this, "DefaultHandler", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      entry: "./backend/src/lambdas/handlers/defaultHandler/index.js",
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    })
+
+    this.disconnectHandler = new NodejsFunction(this, "DisconnectHandler", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      entry: "./backend/src/lambdas/handlers/disconnectHandler/index.js",
+      logRetention: logs.RetentionDays.ONE_WEEK,
+      environment: {
+        CONNECTION_TABLE_NAME: props.connectionTable.tableName,
+      }
+    })
+
+    props.connectionTable.grantWriteData(this.disconnectHandler);
+
+    this.sendMessageHandler = new NodejsFunction(this, "SendMessageHandler", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      entry: "./backend/src/lambdas/handlers/sendMessageHandler/index.js",
+      logRetention: logs.RetentionDays.ONE_WEEK,
+      environment: {
+        CONNECTION_TABLE_NAME: props.connectionTable.tableName,
+        MESSAGE_TABLE_NAME: props.messageTable.tableName,
+      }
+    })
+
+    props.messageTable.grantReadWriteData(this.sendMessageHandler);
+    props.connectionTable.grantReadData(this.sendMessageHandler);
   }
 }
