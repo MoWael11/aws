@@ -1,0 +1,54 @@
+schemaVersion: '2.2'
+description: >
+  Custom Ubuntu 26 Patch Engine.
+  Bypasses AWS Patch Manager OS validation while maintaining security-only precision.
+parameters:
+  Operation:
+    type: String
+    description: "Choose Scan to list missing updates, or Install to apply them."
+    allowedValues:
+      - "Scan"
+      - "Install"
+    default: "Install"
+mainSteps:
+  - action: aws:runShellScript
+    name: "ExecuteUbuntu26Patching"
+    inputs:
+      runCommand:
+        - '#!/bin/bash'
+        - '# Fail safe: Exit the script immediately if any command crashes'
+        - 'set -e' 
+        - ''
+        - '# Tell apt we are a robot, so it never pauses to ask [Y/n] questions'
+        - 'export DEBIAN_FRONTEND=noninteractive' 
+        - ''
+        - 'echo "=== Starting Custom Patch Execution for Ubuntu 26 ==="'
+        - 'echo "Operation Selected: {{Operation}}"'
+        - ''
+        - '# Step 1: Refresh the local list of available packages from Canonical servers'
+        - 'sudo apt-get update -yq'
+        - ''
+        - 'if [ "{{Operation}}" = "Scan" ]; then'
+        - '  echo "--- SCAN MODE: Auditing Missing Security Updates ---"'
+        - '  # -s means "simulate" (dry-run). We grep for "security" to see what is missing.'
+        - '  sudo apt-get upgrade -s | grep -i security || echo "System is fully compliant. No missing security patches."'
+        - ''
+        - 'elif [ "{{Operation}}" = "Install" ]; then'
+        - '  echo "--- INSTALL MODE: Applying Security Updates ---"'
+        - '  # Ensure the native Ubuntu security baseline tool is installed'
+        - '  sudo apt-get install -yq unattended-upgrades'
+        - '  '
+        - '  # Execute the patcher. --debug forces it to print everything it does '
+        - '  # directly to the console so AWS SSM captures the log output.'
+        - '  sudo unattended-upgrade --debug'
+        - '  '
+        - '  # Step 2: Smart Reboot Handling'
+        - '  # If a kernel update happened, Ubuntu creates this specific file.'
+        - '  if [ -f /var/run/reboot-required ]; then'
+        - '    echo "=== REBOOT REQUIRED ==="'
+        - '    echo "Security patches updated core libraries. Rebooting safely in 1 minute..."'
+        - '    sudo shutdown -r +1 "AWS SSM Custom Patching initiated reboot"'
+        - '  else'
+        - '    echo "Patching complete. No reboot required."'
+        - '  fi'
+        - 'fi'
