@@ -1,11 +1,16 @@
 {
-  "name": "chat-app",
+  "name": "infrastructure",
   "version": "0.1.0",
+  "description": "Infrastructure",
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "test": "jest",
-    "cdk": "cdk"
+    "install:all": "npm run install:backend && npm run install:frontend && npm run install:infrastructure",
+    "install:infrastructure": "cd infrastructure && npm install && cd -",
+    "install:backend": "cd backend && npm run install:all && cd -",
+    "install:frontend": "cd frontend && npm install && cd -",
+    "build:frontend": "cd frontend && npm run build && cd -",
+    "build:backend": "cd backend && npm run build:all && cd -",
+    "deploy:infra": "cd infrastructure && npm run deploy && cd -",
+    "deploy:frontend": "npm run --prefix frontend deploy --"
   },
   "devDependencies": {
     "@types/jest": "^30",
@@ -16,11 +21,5 @@
     "ts-jest": "^29",
     "ts-node": "^10.9.2",
     "typescript": "~5.9.3"
-  },
-  "dependencies": {
-    "@aws-sdk/client-ssm": "^3.1088.0",
-    "aws-cdk-lib": "^2.257.0",
-    "aws-jwt-verify": "^5.2.1",
-    "constructs": "^10.5.0"
   }
 }

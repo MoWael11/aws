@@ -25,8 +25,10 @@ export class SocketHandlersConstrcut extends Construct {
     this.authHandler = new NodejsFunction(this, "AuthHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      entry: "./backend/src/lambdas/handlers/authHandler/index.js",
+      entry: "../backend/src/lambdas/handlers/authHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
+      projectRoot: "../backend",
+      depsLockFilePath: "../backend/package-lock.json",
       environment: {
         USER_POOL_ID: props.userPool.userPoolId,
         CLIENT_ID: props.userPoolClient.userPoolClientId,
@@ -36,8 +38,10 @@ export class SocketHandlersConstrcut extends Construct {
     this.connectHandler = new NodejsFunction(this, "ConnectHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      entry: "./backend/src/lambdas/handlers/connectHandler/index.js",
+      entry: "../backend/src/lambdas/handlers/connectHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
+      projectRoot: "../backend",
+      depsLockFilePath: "../backend/package-lock.json",
       environment: {
         CONNECTION_TABLE_NAME: props.connectionTable.tableName,
       }
@@ -48,18 +52,22 @@ export class SocketHandlersConstrcut extends Construct {
     this.defaultHandler = new NodejsFunction(this, "DefaultHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      entry: "./backend/src/lambdas/handlers/defaultHandler/index.js",
+      entry: "../backend/src/lambdas/handlers/defaultHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
+      projectRoot: "../backend",
+      depsLockFilePath: "../backend/package-lock.json",
     })
 
     this.disconnectHandler = new NodejsFunction(this, "DisconnectHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      entry: "./backend/src/lambdas/handlers/disconnectHandler/index.js",
+      entry: "../backend/src/lambdas/handlers/disconnectHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
       environment: {
         CONNECTION_TABLE_NAME: props.connectionTable.tableName,
-      }
+      },
+      projectRoot: "../backend",
+      depsLockFilePath: "../backend/package-lock.json",
     })
 
     props.connectionTable.grantWriteData(this.disconnectHandler);
@@ -67,12 +75,14 @@ export class SocketHandlersConstrcut extends Construct {
     this.sendMessageHandler = new NodejsFunction(this, "SendMessageHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      entry: "./backend/src/lambdas/handlers/sendMessageHandler/index.js",
+      entry: "../backend/src/lambdas/handlers/sendMessageHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
       environment: {
         CONNECTION_TABLE_NAME: props.connectionTable.tableName,
         MESSAGE_TABLE_NAME: props.messageTable.tableName,
-      }
+      },
+      projectRoot: "../backend",
+      depsLockFilePath: "../backend/package-lock.json",
     })
 
     props.messageTable.grantReadWriteData(this.sendMessageHandler);

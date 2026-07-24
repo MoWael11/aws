@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["esnext"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["node", "aws-lambda"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "noEmit": false,
+  },
+  "tsc-alias": {
+      "verbose": true,
+      "resolveFullPaths": true,
+      "fileExtensions": {
+          "inputGlob": "{js,jsx,mjs}",
+          "outputCheck": ["js", "json", "jsx", "mjs"]
+      }
+  },
+
+  "include": ["src/**/*"],
+  "exclude": ["**/node_modules", "**/dist", "**/test"]
+}

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "bash -c 'aws s3 sync ./dist/ s3://$1/ && aws cloudfront create-invalidation --distribution-id $2 --paths \"/*\"' --"
   },
   "dependencies": {
     "oidc-client-ts": "^3.5.0",

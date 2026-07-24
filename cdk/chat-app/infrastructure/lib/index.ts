@@ -38,10 +38,8 @@ export class ChatAppStack extends cdk.Stack {
     });
     
     new WebsiteConstruct(this, 'WebsiteConstruct', {
-
       restEndpoint: messagesApiConstruct.restApiUrl,
       wsEndpoint: apiSocketConstruct.webScoketUrl,
-
       userPoolClient: cognitoConstrcut.userPoolClient,
       userPoolClientId: cognitoConstrcut.userPoolClient.userPoolClientId,
       cognitoDomain: cognitoConstrcut.userPoolDomain.domainName,

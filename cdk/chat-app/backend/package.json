@@ -1,0 +1,30 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "npx tsc && npx tsc-alias",
+    "install:all": "npm install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.162",
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.28.1",
+    "tsc-alias": "^1.9.1",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1086.0",
+    "@aws-sdk/client-dynamodb": "^3.1086.0",
+    "@aws-sdk/lib-dynamodb": "^3.1090.0",
+    "@aws-sdk/types": "^3.973.15",
+    "aws-jwt-verify": "^5.2.1",
+    "aws-lambda": "^1.0.7",
+    "aws-sdk": "^2.1693.0",
+    "uuid": "^14.0.1"
+  }
+}
