@@ -8,6 +8,7 @@ import * as path from 'path';
 import { Construct } from "constructs";
 import { execSync } from 'child_process';
 import * as fs from 'fs';
+import { Config } from '../types/config';
 
 interface WebsiteConstructProps {
   restEndpoint: string;
@@ -16,6 +17,7 @@ interface WebsiteConstructProps {
   userPoolClientId: string;
   cognitoAuthority: string;
   cognitoDomain: string;
+  config: Config
 }
 
 export class WebsiteConstruct extends Construct {
@@ -27,6 +29,7 @@ export class WebsiteConstruct extends Construct {
     const frontendPath = path.join(__dirname, '../../frontend');
 
     const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
+      bucketName: `${props.config.env}-${props.config.bucketName}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       encryption: s3.BucketEncryption.S3_MANAGED,

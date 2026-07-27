@@ -4,10 +4,12 @@ import { WebSocketLambdaAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authoriz
 import { SocketHandlersConstrcut } from "./socket-handlers";
 import { Construct } from 'constructs';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import { Config } from '../types/config';
 
 interface ApiSocketConstructProps {
   socketHandlers: SocketHandlersConstrcut;
   userpool: cognito.UserPool;
+  config: Config
 }
 
 export class ApiSocketConstruct extends Construct {
@@ -24,10 +26,12 @@ export class ApiSocketConstruct extends Construct {
     const sendMessageHandler = props.socketHandlers.sendMessageHandler;
 
     const authorizer = new WebSocketLambdaAuthorizer('WsAuthorizer', authHandler, {
+      authorizerName: `${props.config.env}-${props.config.projectName}-ws-authorizer`,
       identitySource: ['route.request.querystring.Auth']
     });
 
     this.webSocketApi = new apigwv2.WebSocketApi(this, 'WebSocketApi', {
+      apiName: `${props.config.env}-${props.config.projectName}-websocket-api`,
       connectRouteOptions: {
         integration: new WebSocketLambdaIntegration('ConnectIntegration', connectHandler),
         authorizer
@@ -42,7 +46,7 @@ export class ApiSocketConstruct extends Construct {
 
     const webSocketStage = new apigwv2.WebSocketStage(this, 'mystage', {
       webSocketApi: this.webSocketApi,
-      stageName: 'prod',
+      stageName: `${props.config.env}`,
       autoDeploy: true,
     });
 

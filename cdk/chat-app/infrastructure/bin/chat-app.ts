@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
-import { ChatAppStack } from '../lib';
+import { PipelineStack } from '../lib/pipeline';
+import { sharedConf } from '../config/shared';
 
 const app = new cdk.App();
 
-new ChatAppStack(app, 'ChatAppStack', {
-  env: { account: "919788038405", region: "us-east-1" },
-  tags: {
-    'project': "chat-app",
-  },
-});
+new PipelineStack(app, 'PipelineStack', {
+  env: { account: sharedConf.deployAccount, region: sharedConf.deployRegion },
+})
 
 app.synth();

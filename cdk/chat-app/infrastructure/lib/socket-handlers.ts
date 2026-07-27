@@ -4,12 +4,14 @@ import * as logs from 'aws-cdk-lib/aws-logs'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import * as cognito from 'aws-cdk-lib/aws-cognito'
 import { Construct } from "constructs";
+import { Config } from '../types/config'
 
 interface SocketHandlersConstrcutProps {
   connectionTable: dynamodb.Table
   messageTable: dynamodb.Table
   userPool: cognito.UserPool
   userPoolClient: cognito.UserPoolClient
+  config: Config
 }
 
 export class SocketHandlersConstrcut extends Construct {
@@ -23,7 +25,8 @@ export class SocketHandlersConstrcut extends Construct {
     super(scope, id);
 
     this.authHandler = new NodejsFunction(this, "AuthHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      functionName: `${props.config.env}-${props.config.projectName}-auth-handler`,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       entry: "../backend/src/lambdas/handlers/authHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
@@ -36,7 +39,8 @@ export class SocketHandlersConstrcut extends Construct {
     })
 
     this.connectHandler = new NodejsFunction(this, "ConnectHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      functionName: `${props.config.env}-${props.config.projectName}-connect-handler`,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       entry: "../backend/src/lambdas/handlers/connectHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
@@ -50,7 +54,8 @@ export class SocketHandlersConstrcut extends Construct {
     props.connectionTable.grantWriteData(this.connectHandler);
 
     this.defaultHandler = new NodejsFunction(this, "DefaultHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      functionName: `${props.config.env}-${props.config.projectName}-default-handler`,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       entry: "../backend/src/lambdas/handlers/defaultHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
@@ -59,7 +64,8 @@ export class SocketHandlersConstrcut extends Construct {
     })
 
     this.disconnectHandler = new NodejsFunction(this, "DisconnectHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      functionName: `${props.config.env}-${props.config.projectName}-disconnect-handler`,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       entry: "../backend/src/lambdas/handlers/disconnectHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,
@@ -73,7 +79,8 @@ export class SocketHandlersConstrcut extends Construct {
     props.connectionTable.grantWriteData(this.disconnectHandler);
 
     this.sendMessageHandler = new NodejsFunction(this, "SendMessageHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      functionName: `${props.config.env}-${props.config.projectName}-send-message-handler`,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       entry: "../backend/src/lambdas/handlers/sendMessageHandler/index.ts",
       logRetention: logs.RetentionDays.ONE_WEEK,

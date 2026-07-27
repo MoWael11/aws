@@ -7,22 +7,25 @@ import { ApiSocketConstruct } from './api-socket';
 import { MessagesLambdaConstruct } from './messages-lambda';
 import { MessagesApiConstruct } from './messages-api';
 import { CognitoConstruct } from './cognito';
+import { StackPropsWithConfig } from '../types/stack';
 
 export class ChatAppStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: StackPropsWithConfig) {
     super(scope, id, props);
 
-    const dynamoDBConstruct = new DynamoDBConstruct(this, 'DynamoDBConstruct');
+    const dynamoDBConstruct = new DynamoDBConstruct(this, 'DynamoDBConstruct', props.config);
 
-    const cognitoConstrcut = new CognitoConstruct(this, 'CognitoConstruct');
+    const cognitoConstrcut = new CognitoConstruct(this, 'CognitoConstruct', props.config);
 
     const messagesLambdaConstruct = new MessagesLambdaConstruct(this, 'MessagesLambda', {
       messageTable: dynamoDBConstruct.messageTable,
+      config: props.config
     });
 
     const messagesApiConstruct = new MessagesApiConstruct(this, 'MessagesApi', {
       messagesLambda: messagesLambdaConstruct,
       userpool: cognitoConstrcut.userPool,
+      config: props.config
     });
     
     const socketHandlers = new SocketHandlersConstrcut(this, 'SocketHandlers', {
@@ -30,11 +33,13 @@ export class ChatAppStack extends cdk.Stack {
       messageTable: dynamoDBConstruct.messageTable,
       userPool: cognitoConstrcut.userPool,
       userPoolClient: cognitoConstrcut.userPoolClient,
+      config: props.config
     });
 
     const apiSocketConstruct = new ApiSocketConstruct(this, 'ApiSocketConstruct', {
       socketHandlers: socketHandlers,
       userpool: cognitoConstrcut.userPool,
+      config: props.config
     });
     
     new WebsiteConstruct(this, 'WebsiteConstruct', {
@@ -44,6 +49,7 @@ export class ChatAppStack extends cdk.Stack {
       userPoolClientId: cognitoConstrcut.userPoolClient.userPoolClientId,
       cognitoDomain: cognitoConstrcut.userPoolDomain.domainName,
       cognitoAuthority: cognitoConstrcut.userPool.userPoolProviderUrl,
+      config: props.config
     });
   }
 }

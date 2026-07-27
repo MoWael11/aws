@@ -2,10 +2,12 @@ import { Construct } from 'constructs';
 import { MessagesLambdaConstruct } from './messages-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import { Config } from '../types/config';
 
 interface MessagesApiConstructProps {
   messagesLambda: MessagesLambdaConstruct;
   userpool: cognito.UserPool;
+  config: Config;
 }
 
 export class MessagesApiConstruct extends Construct {
@@ -17,7 +19,7 @@ export class MessagesApiConstruct extends Construct {
     super(scope, id);
 
     this.api = new apigateway.RestApi(this, 'MessagesApi', {
-      restApiName: 'Messages Service',
+      restApiName: `${props.config.env}-${props.config.projectName}-messages-api`,
       description: 'This service serves messages.',
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
@@ -37,7 +39,7 @@ export class MessagesApiConstruct extends Construct {
     
     const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'AuthorizerApi', {
       cognitoUserPools: [props.userpool],
-      authorizerName: 'CognitoAPIAuthorizer',
+      authorizerName: `${props.config.env}-${props.config.projectName}-authorizer`,
       identitySource: 'method.request.header.Authorization', // Cerca il token nell'header Authorization
     });
 

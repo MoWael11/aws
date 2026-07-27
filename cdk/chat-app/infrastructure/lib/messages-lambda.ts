@@ -3,9 +3,11 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from "constructs";
+import { Config } from '../types/config';
 
 interface MessagesLambdaConstructProps {
   messageTable: dynamodb.Table
+  config: Config
 }
 
 export class MessagesLambdaConstruct extends Construct {
@@ -14,7 +16,8 @@ export class MessagesLambdaConstruct extends Construct {
     super(scope, id);
 
     this.getMessagesLambda = new NodejsFunction(this, "GetMessages", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      functionName: `${props.config.env}-${props.config.projectName}-get-messages`,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       entry: "../backend/src/lambdas/messages/getMessages/index.ts", 
       logRetention: logs.RetentionDays.ONE_WEEK,
